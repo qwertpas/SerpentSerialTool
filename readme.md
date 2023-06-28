@@ -3,6 +3,10 @@ compile into an executable using:
 ```
 pyinstaller --clean --windowed --icon robo.icns --add-data "bracks.png:." kinter.py
 ```
+or 
+```
+pyinstaller kinter.spec
+```
 
 `--clean` clears temp files
 `--windowed` generates an application file on MacOS

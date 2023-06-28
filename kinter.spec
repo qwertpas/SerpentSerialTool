@@ -37,6 +37,7 @@ exe = EXE(
     target_arch=None,
     codesign_identity=None,
     entitlements_file=None,
+    icon=['robo.icns'],
 )
 coll = COLLECT(
     exe,
@@ -51,6 +52,6 @@ coll = COLLECT(
 app = BUNDLE(
     coll,
     name='kinter.app',
-    icon=None,
+    icon='robo.icns',
     bundle_identifier=None,
 )
