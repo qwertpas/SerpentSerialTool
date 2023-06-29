@@ -7,7 +7,7 @@ import time
 
 
 root = tk.Tk()
-root.title("Serial tool")
+root.title("Serpent Serial Tool")
 
 # Create a frame to hold the checkbox, text display, and scrollbar
 mainframe = tk.Frame(root)
@@ -161,6 +161,8 @@ entry.bind("<KeyPress>", on_keypress)
 
 entry.pack(side=tk.RIGHT, fill=tk.X, expand=True)
 
+# img = tk.Image("photo", file="serpent.png")
+# root.tk.call('wm','iconphoto', root._w, img)
 
 # Start the tkinter event loop
 root.mainloop()

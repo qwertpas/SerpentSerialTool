@@ -1,11 +1,11 @@
 compile into an executable using:
 
 ```
-pyinstaller --clean --windowed --icon robo.icns --add-data "bracks.png:." kinter.py
+pyinstaller --clean --windowed --icon serpent.icns --add-data "serpent.png:." --noconfirm --name SerpentSerialTool serpent.py
 ```
 or 
 ```
-pyinstaller kinter.spec
+pyinstaller SerpentSerialTool.spec
 ```
 
 `--clean` clears temp files
