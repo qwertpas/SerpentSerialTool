@@ -1,10 +1,13 @@
 import tkinter as tk
+from tkinter.messagebox import showinfo
 import serial.tools.list_ports
+import threading
+import time
 
 
 
 root = tk.Tk()
-root.title("Text Entry and Display")
+root.title("Serial tool")
 
 # Create a frame to hold the checkbox, text display, and scrollbar
 mainframe = tk.Frame(root)
@@ -15,7 +18,7 @@ portframe = tk.Frame(mainframe)
 portframe.pack()
 
 # label for the port dropdown
-portlabel = tk.Label(portframe, text = "Select a serial port:")
+portlabel = tk.Label(portframe, text = "Serial port:")
 portlabel.pack(side=tk.LEFT)
 
 def scan_serial_ports():
@@ -43,31 +46,53 @@ baudrate_var.set(baudrates[0])
 baud_dropdown = tk.OptionMenu(baudframe, baudrate_var, *baudrates)
 baud_dropdown.pack(side=tk.RIGHT)
 
-def stream_data():
-    selected_port = port_var.get()
-    if selected_port:
-        try:
-            ser = serial.Serial(selected_port, baudrate=baudrate_var.get(), timeout=1)
-            while True:
-                data = ser.readline().decode().strip()
-                text_display.configure(state=tk.NORMAL)
-                text_display.insert(tk.END, data + '\n')
-                text_display.configure(state=tk.DISABLED)
-                text_display.see(tk.END)
-        except serial.SerialException:
-            print(f"Failed to open serial port: {selected_port}")
 
-doprint = False
-def toggleprint():
-    global doprint
-    doprint = not doprint 
-    if doprint:
-        print(f"Connecting to {port_var.get()} at {baudrate_var.get()} baud")
-        stream_data()
-        runbutton.config(text="Pause")
+serial_on = False
+serial_thread = None
+ser = None
+
+def read_serial():
+    port = port_var.get()
+
+    print(f"Connecting to {port} at {baudrate_var.get()} baud")
+
+    global ser
+    if port:
+        try:
+            ser = serial.Serial(port, baudrate=baudrate_var.get(), timeout=1)
+        except serial.SerialException:
+            showinfo("Error", f"Failed to open serial port: {port}")
+            return
     else:
+        showinfo("Error", "Please select a port.")
+        return
+    
+    while serial_on:
+        if ser.in_waiting > 0:
+            data = ser.readline().decode().rstrip()
+            text_display.configure(state=tk.NORMAL)
+            text_display.insert(tk.END, data + '\n')
+            text_display.configure(state=tk.DISABLED)
+            text_display.see(tk.END)
+        time.sleep(0.1)
+        
+    ser.close()
+
+def toggle_serial():
+    global serial_on, serial_thread
+    serial_on = not serial_on 
+    if serial_on: #turning on
+        
+        serial_thread = threading.Thread(target=read_serial, daemon=True)
+        serial_thread.start()
+
+        runbutton.config(text="Pause")
+    else: #turning off
+        # if(serial_thread):
+        #     serial_thread.join()
         runbutton.config(text="Run")
-runbutton = tk.Button(mainframe, text="Run", command=toggleprint)
+
+runbutton = tk.Button(mainframe, text="Run", command=toggle_serial)
 runbutton.pack()
 
 
@@ -98,7 +123,6 @@ autosend_check = tk.Checkbutton(mainframe, text="Send keystrokes immediately", v
 autosend_check.pack()
 
 
-
 entryframe = tk.Frame(mainframe)
 entryframe.pack()
 
@@ -109,6 +133,11 @@ entrylabel.pack(side=tk.LEFT)
 def add_text():
     text = entry.get()
     if text:
+        global ser
+        if(ser is not None):
+            if(ser.is_open):
+                ser.write(text.encode())
+
         text_display.configure(state=tk.NORMAL)
         text_display.insert(tk.END, text + '\n')
         text_display.configure(state=tk.DISABLED)
@@ -123,8 +152,9 @@ entry.bind("<Return>", lambda event: add_text())
 def on_keypress(event):
     if auto_send.get() == 1:
         key = event.char
+        entry.delete(0, tk.END)
+        entry.insert(0, key)
         add_text()
-        print("Key pressed:", key)
 
 # Bind the KeyPress event to the on_keypress function
 entry.bind("<KeyPress>", on_keypress)
