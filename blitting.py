@@ -125,9 +125,6 @@ class LivePlot():
     def close(self):
         plt.close(self.fig)
 
-    
-#format: 
-teststr = "line a: 32.33, line b: 2323.2, line c: 43434 \n line a: 32.33, line b: 2323.2, line c: 43434"
 
 if __name__ == "__main__":
 

@@ -3,7 +3,7 @@ from tkinter.messagebox import showinfo
 import serial.tools.list_ports
 import threading
 import time
-
+from serpent_plt import PlotWindow
 
 
 root = tk.Tk()
@@ -18,7 +18,7 @@ portframe = tk.Frame(mainframe)
 portframe.pack()
 
 # label for the port dropdown
-portlabel = tk.Label(portframe, text = "Serial port:")
+portlabel = tk.Label(portframe, text = "Port:")
 portlabel.pack(side=tk.LEFT)
 
 def scan_serial_ports():
@@ -50,7 +50,7 @@ port_button.pack(side=tk.RIGHT, before=port_dropdown)
 baudframe = tk.Frame(mainframe)
 baudframe.pack()
 # label for the baudrate dropdown
-baudlabel = tk.Label(baudframe, text = "   Baudrate:")
+baudlabel = tk.Label(baudframe, text = "Baudrate:")
 baudlabel.pack(side=tk.LEFT)
 
 
@@ -75,7 +75,7 @@ def read_serial():
     if port:
         try:
             ser = serial.Serial(port, baudrate=baudrate_var.get(), timeout=1)
-            # ser.set_buffer_size(rx_size = 128000, tx_size = 128000)
+            ser.read_all()
 
         except serial.SerialException:
             showinfo("Error", f"Failed to open serial port: {port}")
@@ -85,45 +85,41 @@ def read_serial():
         return
     
     message = ""
+    delimiter = '\n'
+
+    count = 0
     
     while serial_on:
         if ser.in_waiting > 0:
-            uarttext = ser.read_all().decode()
+            try:
+                uarttext = ser.read_all().decode()
+            except Exception as e:
+                print(e)
+                continue
 
-            print("UART IN +++++++++")
-            print(uarttext)
-            print("+++++++++ \n")
-
-
-
+            if(delimiter != '\t'):
+                if(uarttext.find('\t') != -1):
+                    delimiter = '\t'
 
             ending=0
             while(uarttext):
-                ending = uarttext.find("q")
+                ending = uarttext.find(delimiter)
                 if(ending == -1):
                     break
 
                 message += uarttext[0:ending]
-
-                print("~~~~~v")
-                print(message)
-                print("~~~~~\n")
-
                 add_text(message)
 
+                if plotwindow and count%10==0:
+                    plotwindow.plot_message(message)
 
                 message = "" #clear message
-                uarttext = uarttext[ending+1:] #front of buffer used up
+                uarttext = uarttext[ending+len(delimiter):] #front of buffer used up
 
             message = uarttext #whatver is left over
-            print("finish processing buffer. Rollover: \n")
-            print(message)
-            print("------------- \n \n")
 
-            
-
-
-        time.sleep(0.1)
+        time.sleep(0.01)
+        count+=1
         
     ser.close()
 
@@ -141,12 +137,33 @@ def toggle_serial():
         #     serial_thread.join()
         runbutton.config(text="Run")
 
-runbutton = tk.Button(mainframe, text="Run", command=toggle_serial)
-runbutton.pack()
+runbutton = tk.Button(baudframe, text="Run", command=toggle_serial)
+runbutton.pack(side=tk.RIGHT, before=baud_dropdown)
+
+optionframe = tk.Frame(mainframe)
+optionframe.pack()
+
+options_mb = tk.Menubutton(optionframe, text="Options")
+options_mb.menu = tk.Menu(options_mb)
+options_mb["menu"] = options_mb.menu
 
 autoscroll = tk.IntVar(value=1)
-autoscroll_check = tk.Checkbutton(mainframe, text="Autoscroll", variable=autoscroll)
-autoscroll_check.pack()
+autosend = tk.IntVar(value=0)
+
+options_mb.menu.add_checkbutton(label="Autoscroll", variable=autoscroll)
+options_mb.menu.add_checkbutton(label="Send immediately", variable=autosend)
+options_mb.pack(side=tk.LEFT)
+
+plotwindow = None
+def open_plot_w_root():
+    global plotwindow
+    try:
+        plotwindow.lift()
+    except:
+        plotwindow = PlotWindow(root)
+
+button = tk.Button(optionframe, text="Open Plot", command=open_plot_w_root)
+button.pack(side=tk.RIGHT)
 
 
 consoleframe = tk.Frame(mainframe)
@@ -158,9 +175,11 @@ scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
 
 
 # Create a text display widget
-text_display = tk.Text(consoleframe, yscrollcommand=scrollbar.set, height=10)
+text_display = tk.Text(consoleframe, font=('Arial',25), yscrollcommand=scrollbar.set, height=10, width=20)
 text_display.configure(state=tk.DISABLED)
 text_display.pack(fill=tk.BOTH, expand=True)
+
+text_display.config(font=("Courier", 20))
 
 # Configure the scrollbar to work with the text display
 scrollbar.config(command=text_display.yview)
@@ -169,9 +188,9 @@ scrollbar.config(command=text_display.yview)
 
 
 # Create a checkbox for toggling autosend keystrokes
-auto_send = tk.IntVar(value=0)
-autosend_check = tk.Checkbutton(mainframe, text="Send keystrokes immediately", variable=auto_send)
-autosend_check.pack()
+# auto_send = tk.IntVar(value=0)
+# autosend_check = tk.Checkbutton(mainframe, text="Send keystrokes immediately", variable=auto_send)
+# autosend_check.pack()
 
 
 entryframe = tk.Frame(mainframe)
@@ -203,15 +222,31 @@ entry = tk.Entry(entryframe)
 # Bind the Enter key to add_text function
 entry.bind("<Return>", lambda event: send_data())
 
-def on_keypress(event):
-    if auto_send.get() == 1:
+def entry_keypress(event):
+    if autosend.get() == 1:
         key = event.char
         entry.delete(0, tk.END)
         entry.insert(0, key)
         send_data()
 
+fontsize=20
+def console_keypress(event):
+    if(event.state == 8 or event.state == 4): #command or control is pressed at the same time
+        global fontsize
+        if(event.char == '='):
+            fontsize += 2
+            text_display.config(font=("Courier", fontsize))
+            print('up')
+        elif(event.char == '-'):
+            fontsize -= 2
+            text_display.config(font=("Courier", fontsize))
+            print('down')
+
+
+
 # Bind the KeyPress event to the on_keypress function
-entry.bind("<KeyPress>", on_keypress)
+entry.bind("<KeyPress>", entry_keypress)
+text_display.bind("<KeyPress>", console_keypress)
 
 entry.pack(side=tk.RIGHT, fill=tk.X, expand=True)
 
