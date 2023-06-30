@@ -9,7 +9,7 @@ import time
 root = tk.Tk()
 root.title("Serpent Serial Tool")
 
-# Create a frame to hold the checkbox, text display, and scrollbar
+# Top level frame that stacks everything vertically
 mainframe = tk.Frame(root)
 mainframe.pack(fill=tk.BOTH, expand=True)
 
@@ -26,11 +26,26 @@ def scan_serial_ports():
     port_names = [port.device for port in ports]
     return port_names
 
+def refresh_ports():
+    ports = serial.tools.list_ports.comports()
+    port_names = [port.device for port in ports]
+    menu = port_dropdown['menu']
+    menu.delete(0, 'end')
+    for port_name in port_names:
+        menu.add_command(label=port_name, command=tk._setit(port_var, port_name))
+    port_var.set(port_names[-1])
+
 # Create a dropdown menu for serial ports
 ports = scan_serial_ports()
 port_var = tk.StringVar()
 port_dropdown = tk.OptionMenu(portframe, port_var, *ports)
 port_dropdown.pack(side=tk.RIGHT)
+
+refresh_ports()
+
+
+port_button = tk.Button(portframe, text="Refresh", command=refresh_ports)
+port_button.pack(side=tk.RIGHT, before=port_dropdown)
 
 baudframe = tk.Frame(mainframe)
 baudframe.pack()
@@ -60,6 +75,8 @@ def read_serial():
     if port:
         try:
             ser = serial.Serial(port, baudrate=baudrate_var.get(), timeout=1)
+            # ser.set_buffer_size(rx_size = 128000, tx_size = 128000)
+
         except serial.SerialException:
             showinfo("Error", f"Failed to open serial port: {port}")
             return
@@ -67,13 +84,45 @@ def read_serial():
         showinfo("Error", "Please select a port.")
         return
     
+    message = ""
+    
     while serial_on:
         if ser.in_waiting > 0:
-            data = ser.readline().decode().rstrip()
-            text_display.configure(state=tk.NORMAL)
-            text_display.insert(tk.END, data + '\n')
-            text_display.configure(state=tk.DISABLED)
-            text_display.see(tk.END)
+            uarttext = ser.read_all().decode()
+
+            print("UART IN +++++++++")
+            print(uarttext)
+            print("+++++++++ \n")
+
+
+
+
+            ending=0
+            while(uarttext):
+                ending = uarttext.find("q")
+                if(ending == -1):
+                    break
+
+                message += uarttext[0:ending]
+
+                print("~~~~~v")
+                print(message)
+                print("~~~~~\n")
+
+                add_text(message)
+
+
+                message = "" #clear message
+                uarttext = uarttext[ending+1:] #front of buffer used up
+
+            message = uarttext #whatver is left over
+            print("finish processing buffer. Rollover: \n")
+            print(message)
+            print("------------- \n \n")
+
+            
+
+
         time.sleep(0.1)
         
     ser.close()
@@ -95,7 +144,9 @@ def toggle_serial():
 runbutton = tk.Button(mainframe, text="Run", command=toggle_serial)
 runbutton.pack()
 
-
+autoscroll = tk.IntVar(value=1)
+autoscroll_check = tk.Checkbutton(mainframe, text="Autoscroll", variable=autoscroll)
+autoscroll_check.pack()
 
 
 consoleframe = tk.Frame(mainframe)
@@ -107,7 +158,7 @@ scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
 
 
 # Create a text display widget
-text_display = tk.Text(consoleframe, yscrollcommand=scrollbar.set)
+text_display = tk.Text(consoleframe, yscrollcommand=scrollbar.set, height=10)
 text_display.configure(state=tk.DISABLED)
 text_display.pack(fill=tk.BOTH, expand=True)
 
@@ -118,7 +169,7 @@ scrollbar.config(command=text_display.yview)
 
 
 # Create a checkbox for toggling autosend keystrokes
-auto_send = tk.IntVar()
+auto_send = tk.IntVar(value=0)
 autosend_check = tk.Checkbutton(mainframe, text="Send keystrokes immediately", variable=auto_send)
 autosend_check.pack()
 
@@ -130,31 +181,34 @@ entryframe.pack()
 entrylabel = tk.Label(entryframe, text = "Send:")
 entrylabel.pack(side=tk.LEFT)
 
-def add_text():
+def add_text(text):
+    text_display.configure(state=tk.NORMAL)
+    text_display.insert(tk.END, text + '\n')
+    text_display.configure(state=tk.DISABLED)
+    if(autoscroll.get()):
+        text_display.see(tk.END)
+
+def send_data():
     text = entry.get()
     if text:
         global ser
         if(ser is not None):
             if(ser.is_open):
                 ser.write(text.encode())
-
-        text_display.configure(state=tk.NORMAL)
-        text_display.insert(tk.END, text + '\n')
-        text_display.configure(state=tk.DISABLED)
         entry.delete(0, tk.END)
-        text_display.see(tk.END)
+        add_text(text)
 
 # Create a text entry widget
 entry = tk.Entry(entryframe)
 # Bind the Enter key to add_text function
-entry.bind("<Return>", lambda event: add_text())
+entry.bind("<Return>", lambda event: send_data())
 
 def on_keypress(event):
     if auto_send.get() == 1:
         key = event.char
         entry.delete(0, tk.END)
         entry.insert(0, key)
-        add_text()
+        send_data()
 
 # Bind the KeyPress event to the on_keypress function
 entry.bind("<KeyPress>", on_keypress)

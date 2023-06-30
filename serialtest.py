@@ -1,37 +1,51 @@
-import asyncio
+import tkinter as tk
+from tkinter import ttk
+import matplotlib.pyplot as plt
+from matplotlib.animation import FuncAnimation
 import serial
 
-async def read_serial():
-    while True:
+def open_plot_window():
+    # Create a new window
+    plot_window = tk.Toplevel(root)
+    plot_window.title("Serial Data Plot")
+    plot_window.geometry("600x400")
+
+    # Create a figure and axis for the plot
+    fig, ax = plt.subplots()
+
+    # Initialize empty lists for x and y data
+    x_data = []
+    y_data = []
+
+    # Create an empty line object for the plot
+    line, = ax.plot([], [], 'b-')
+
+    # Function to update the plot
+    def update_plot(i):
         if ser.in_waiting > 0:
             data = ser.readline().decode().rstrip()
-            print("New message:", data)
-        await asyncio.sleep(0.1)
+            # Process the data as needed
+            # Append the x and y data
+            x_data.append(i)
+            y_data.append(float(data))
+            # Update the plot
+            line.set_data(x_data, y_data)
+            ax.relim()
+            ax.autoscale_view()
 
-# Open the serial port
-ser = serial.Serial('/dev/cu.usbmodem109297901', 9600)  # Replace 'COM1' with the appropriate port and '9600' with the baud rate
+    # Open the serial port
+    ser = serial.Serial('COM1', 9600)  # Replace 'COM1' with the appropriate port and '9600' with the baud rate
 
-# Create an asyncio event loop
-loop = asyncio.get_event_loop()
+    # Animation function to continuously update the plot
+    anim = FuncAnimation(fig, update_plot, interval=100)
 
-# Run the serial reading coroutine concurrently
-serial_task = loop.create_task(read_serial())
+    # Start the animation
+    plt.show()
 
-# Perform other operations concurrently (example)
-async def other_operation():
-    while True:
-        print("Performing other operation...")
-        await asyncio.sleep(1)
+root = tk.Tk()
 
-other_operation_task = loop.create_task(other_operation())
+# Create a button to open the plot window
+button = ttk.Button(root, text="Open Plot Window", command=open_plot_window)
+button.pack(pady=20)
 
-# Run the event loop
-try:
-    loop.run_forever()
-except KeyboardInterrupt:
-    pass
-
-# Cancel the tasks and close the event loop
-serial_task.cancel()
-other_operation_task.cancel()
-loop.close()
+root.mainloop()
