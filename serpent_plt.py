@@ -9,7 +9,7 @@ import time
 from blitting import BlitManager
 
 
-class PlotWindow:
+class PlotWindowPlt:
     def __init__(self, parent):
         self.parent = parent
         self.window = tk.Toplevel(parent)
@@ -100,7 +100,7 @@ class PlotWindow:
     def plot_message(self, message:str):
         
 
-        new_data = PlotWindow.message_to_dict(message)
+        new_data = PlotWindowPlt.message_to_dict(message)
 
         if(len(new_data) != len(self.labels)):
 

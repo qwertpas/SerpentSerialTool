@@ -1,53 +1,64 @@
-from tkinter import *
-import tkinter
 
-class Application:
+from tkinter import Tk, Canvas, Frame, BOTH
 
-    def hello(self):
-        msg = tkinter.messagebox.askquestion('title','question')
+import numpy as np
+import colorsys
 
-    def __init__(self, form):
-        # form.resizable(0,0)
-        form.minsize(200, 200)
-        form.title('Top Level')
+class Example(Frame):
 
-        # Global Padding pady and padx
-        pad_x = 5
-        pad_y = 5
+    def __init__(self):
+        super().__init__()
 
-        # Create controls
-
-        label1 = Label(form, text="Label1")
-        textbox1 = Entry(form)
-        #command= parameter missing.
+        self.initUI()
 
 
-        textarea1 = Text(form, width=20, height=10)
-        scrollbar1 = Scrollbar(form)
+
+    def initUI(self):
+
+        self.master.title("Lines")
+        self.pack(fill=BOTH, expand=1)
+
+        self.canvas = Canvas(self)
+        self.canvas.create_line(15, 25, 200, 25)
+        self.canvas.create_line(300, 35, 300, 200, dash=(4, 2))
+        self.canvas.create_line(55, 85, 155, 85, 105, 180, 55, 85, tag="T")
 
 
-        textarea1.config(yscrollcommand=scrollbar1.set)
-        scrollbar1.config(command=textarea1.yview)
+        self.canvas.pack(fill=BOTH, expand=1)
 
-        button1 = Button(form, text='Button1')
-        self.textbox = textbox1 # to make it accessible outside your __init__
-        self.textarea = textarea1 # see above
+        self.i=0
+        self.start_random()
 
-        form.bind("<Return>", self.addchat)
+    def start_random(self):
+        points = (np.random.random(size=10)*100).astype(int).tolist()
+        print(points)
 
-        textarea1.grid(row=0, column=1, padx=pad_x, pady=pad_y, sticky=W)
-        scrollbar1.grid(row=0, column=2, padx=pad_x, pady=pad_y, sticky=W)
-        textbox1.grid(row=1, column=1, padx=pad_x, pady=pad_y, sticky=W)
-        button1.grid(row=1, column=2, padx=pad_x, pady=pad_y, sticky=W)
+        # self.canvas.create_line(55, 85, 155, 85, 105, 180, 55, 85+self.i*10, tag="Ti")
 
-        form.mainloop()
+        rgb = colorsys.hsv_to_rgb(np.random.random(), 0.6, 0.5)
+        
+        # Convert RGB values to hexadecimal string
+        hex_code = '#{:02x}{:02x}{:02x}'.format(
+            int(rgb[0] * 255),
+            int(rgb[1] * 255),
+            int(rgb[2] * 255)
+        )
 
-    def addchat(self, event=None):
-        txt = self.textbox.get()
-        # gets everything in your textbox
-        self.textarea.insert(END,"\n"+txt)
-        # tosses txt into textarea on a new line after the end
-        self.textbox.delete(0,END) # deletes your textbox text
+        self.canvas.itemconfig("T", fill=hex_code)
+        self.canvas.coords('T', points)
+        self.after(100, self.start_random)
 
-root = Tk()
-Application(root)
+        self.i += 1
+
+
+
+def main():
+
+    root = Tk()
+    ex = Example()
+    root.geometry("400x250+300+300")
+    root.mainloop()
+
+
+if __name__ == '__main__':
+    main()
