@@ -1,9 +1,10 @@
 import tkinter as tk
-from tkinter.messagebox import showinfo
+from tkinter.messagebox import showinfo, askokcancel
 import serial.tools.list_ports
 import threading
 import time
 from serpent_plt import PlotWindow
+from periodics import PeriodicSleeper
 
 
 root = tk.Tk()
@@ -66,9 +67,11 @@ serial_on = False
 serial_thread = None
 ser = None
 
-def read_serial():
-    port = port_var.get()
+messagebuffer = ""
+plot_handler = None
 
+def start_serial():
+    port = port_var.get()
     print(f"Connecting to {port} at {baudrate_var.get()} baud")
 
     global ser
@@ -76,7 +79,6 @@ def read_serial():
         try:
             ser = serial.Serial(port, baudrate=baudrate_var.get(), timeout=1)
             ser.read_all()
-
         except serial.SerialException:
             showinfo("Error", f"Failed to open serial port: {port}")
             return
@@ -86,9 +88,9 @@ def read_serial():
     
     message = ""
     delimiter = '\n'
+    global messagebuffer
 
     count = 0
-    
     while serial_on:
         if ser.in_waiting > 0:
             try:
@@ -109,32 +111,39 @@ def read_serial():
 
                 message += uarttext[0:ending]
                 add_text(message)
-
-                if plotwindow and count%10==0:
-                    plotwindow.plot_message(message)
+                messagebuffer = message
 
                 message = "" #clear message
                 uarttext = uarttext[ending+len(delimiter):] #front of buffer used up
 
             message = uarttext #whatver is left over
 
-        time.sleep(0.01)
+        time.sleep(0.033)
         count+=1
         
     ser.close()
 
+def send_to_plot():
+    global messagebuffer
+    if(plotwindow):
+        plotwindow.plot_message(messagebuffer)
+
+
 def toggle_serial():
-    global serial_on, serial_thread
+    global serial_on, serial_thread, plot_handler
     serial_on = not serial_on 
     if serial_on: #turning on
         
-        serial_thread = threading.Thread(target=read_serial, daemon=True)
+        serial_thread = threading.Thread(target=start_serial, daemon=True)
         serial_thread.start()
+
+        plot_handler = PeriodicSleeper(send_to_plot, 0.01)
 
         runbutton.config(text="Pause")
     else: #turning off
         # if(serial_thread):
         #     serial_thread.join()
+        # plot_handler.stop()
         runbutton.config(text="Run")
 
 runbutton = tk.Button(baudframe, text="Run", command=toggle_serial)
@@ -186,13 +195,6 @@ scrollbar.config(command=text_display.yview)
 
 
 
-
-# Create a checkbox for toggling autosend keystrokes
-# auto_send = tk.IntVar(value=0)
-# autosend_check = tk.Checkbutton(mainframe, text="Send keystrokes immediately", variable=auto_send)
-# autosend_check.pack()
-
-
 entryframe = tk.Frame(mainframe)
 entryframe.pack()
 
@@ -201,11 +203,12 @@ entrylabel = tk.Label(entryframe, text = "Send:")
 entrylabel.pack(side=tk.LEFT)
 
 def add_text(text):
-    text_display.configure(state=tk.NORMAL)
-    text_display.insert(tk.END, text + '\n')
-    text_display.configure(state=tk.DISABLED)
-    if(autoscroll.get()):
-        text_display.see(tk.END)
+    if(serial_on):
+        text_display.configure(state=tk.NORMAL)
+        text_display.insert(tk.END, text + '\n')
+        text_display.configure(state=tk.DISABLED)
+        if(autoscroll.get()):
+            text_display.see(tk.END)
 
 def send_data():
     text = entry.get()
@@ -253,5 +256,11 @@ entry.pack(side=tk.RIGHT, fill=tk.X, expand=True)
 # img = tk.Image("photo", file="serpent.png")
 # root.tk.call('wm','iconphoto', root._w, img)
 
-# Start the tkinter event loop
+
+def on_closing():
+    root.destroy()
+    exit()
+
+root.protocol("WM_DELETE_WINDOW", on_closing)
+
 root.mainloop()

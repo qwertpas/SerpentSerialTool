@@ -48,25 +48,21 @@ class PlotWindow:
         update_button = tk.Button(limits_frame, text="Update Limits", command=update_plot_limits)
         update_button.pack(pady=10)
 
-        def browse_save_location():
+
+        def save_data_as_csv(self=self):
             file_path = filedialog.asksaveasfilename(defaultextension=".csv", filetypes=[("CSV Files", "*.csv")])
             if file_path:
-                save_data_as_csv(file_path)
-
-        def save_data_as_csv(file_path):
-            try:
                 with open(file_path, "w", newline="") as file:
                     writer = csv.writer(file)
-                    # Write your list of floats to the CSV file
-                    data = [1.23, 4.56, 7.89]  # Example data
-                    writer.writerow(data)
-                # messagebox.showinfo("Success", "Data saved as CSV successfully!")
-            except Exception as e:
-                print(e)
-                # messagebox.showerror("Error", str(e))
+                    
+                    # Write the labels as the header row
+                    writer.writerow(self.labels)
+                    
+                    # Write the data rows
+                    writer.writerows(self.data.T)
 
         # Create a button to browse for save location and save data as CSV
-        save_button = tk.Button(self.window, text="Save CSV", command=browse_save_location)
+        save_button = tk.Button(self.window, text="Save CSV", command=save_data_as_csv)
         save_button.pack(pady=10)
 
         self.historylen = 100
@@ -76,7 +72,7 @@ class PlotWindow:
         self.lines = [ln]
         self.bm = None
         self.ax.set_xlim(0, 100)
-        self.ax.set_ylim(0, 100)
+        self.ax.set_ylim(0, 800)
 
 
 
@@ -113,7 +109,8 @@ class PlotWindow:
                 if key not in self.labels:
                     self.labels.append(key)
                     self.data = np.append(self.data, [np.zeros(self.historylen)], axis=0)
-                    (ln,) = self.ax.plot(np.zeros(self.historylen), 'o-', label=key, markersize=1)
+                    (ln,) = self.ax.plot(np.zeros(self.historylen), label=key)
+                    # (ln,) = self.ax.plot(np.zeros(self.historylen), 'o-', label=key, markersize=1)
                     self.lines.append(ln)
 
             #remove any series that aren't active
@@ -141,6 +138,7 @@ class PlotWindow:
             # self.ax.plot(self.data[i], label=self.labels[i])
             self.lines[i].set_ydata(self.data[i])
         self.bm.update()
+        # self.fig.update()
 
 
 
@@ -151,9 +149,9 @@ if __name__ == "__main__":
     root = tk.Tk()
     serpent_plt = PlotWindow(root)
 
-    for i in range(100):
+    for i in range(1000):
         serpent_plt.plot_message(f"m_angle  :   {i} dsdsdw\n temp: 66 \n \t")
-        time.sleep(1)
+        time.sleep(0.01)
 
     root.mainloop()
 
