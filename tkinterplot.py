@@ -1,6 +1,7 @@
 import sys
 import tkinter as tk
 import numpy as np
+from numpy import log10, ceil, floor
 from colorsys import hsv_to_rgb
 from periodics import PeriodicSleeper
 
@@ -19,12 +20,11 @@ class Plot(tk.Frame):
         self.side_frame = tk.LabelFrame(parent,text='Scale',padx=5, pady=5)
         self.side_frame.pack(side=tk.RIGHT, fill='both')
 
-        self.legend_label = tk.Label(self.side_frame, text="set the sacle")
-        self.legend_label.pack()
+        # self.legend_label = tk.Label(self.side_frame, text="set the sacle")
+        # self.legend_label.pack()
 
         self.canvas.pack(expand=True, fill=tk.BOTH)
         self.pack(expand=True, fill=tk.BOTH)
-
 
         self.historylen = 100
         self.labels = []
@@ -32,8 +32,9 @@ class Plot(tk.Frame):
         # self.scale = np.array([])
         self.hues = []
         self.w = parent.winfo_width()
-        self.h_2 = parent.winfo_height() / 2.
+        self.h = parent.winfo_height()
         self.max = 1e-6
+        self.min = -1e-6
 
         self.message = "" #buffer that some external loop updates, then the plotter displays it periodically
 
@@ -41,22 +42,39 @@ class Plot(tk.Frame):
         self.temp_tags = [] #strings of y axis mark tags that get redrawn on resize
         self.scale_frames = []
 
+        self.paused = False
+
         self.plotloop()
+
+    def pause(self):
+        self.paused = True
         
     def disp(self, val):
-        val=val/self.max
+        val=(val-self.min)/(self.max-self.min) #map any value to 0 to +1
         pad = 20
-        return (self.h_2 - pad) * (1 - val) + pad
+        return (self.h - 2*pad) * (1-val) + pad
+    
+    def find_nice_range(xmin, xmax):
+        n = ceil(log10((xmax-xmin)/5)-1)
+        s = (xmax-xmin)/10**(n+1)
+        if s <= 1:
+            s = 1
+        elif s <= 2:
+            s = 2
+        else:
+            s = 5
+        step = s*10**n
+        bot = floor(xmin/step)*step
+        return np.arange(bot, xmax+step, step)
 
     def on_resize(self, event=None):
         self.w = self.winfo_width()
-        self.h_2 = self.winfo_height() / 2.
+        self.h = self.winfo_height()
 
         for temp_tag in self.temp_tags:
             self.canvas.delete(temp_tag)  # Delete line item from the canvas
 
-        for y in np.linspace(-self.max, self.max, 10):
-            y = Plot.round_sigfig(y, 2)
+        for y in Plot.find_nice_range(self.min, self.max):
             marktag = f"_M{y}"
             gridtag = f"_G{y}"
             self.temp_tags.append(marktag)
@@ -67,6 +85,7 @@ class Plot(tk.Frame):
             else:
                 self.canvas.create_line(0, self.disp(y), self.w, self.disp(y), tag=gridtag, fill="#454545")
             self.canvas.create_text(10, h, anchor='w', text=f"{y:0.4g}", tag=marktag)
+        
 
         # self.data = np.zeros_like(self.data)
         self.draw()
@@ -100,13 +119,9 @@ class Plot(tk.Frame):
         )
         return hex_code
     
-    def round_sigfig(x, p):
-        x_positive = np.where(np.isfinite(x) & (x != 0), np.abs(x), 10**(p-1))
-        mags = 10 ** (p - 1 - np.floor(np.log10(x_positive)))
-        return np.round(x * mags) / mags
-    
     def set(self, message):
         self.message = message
+        self.paused = False
 
     def plotloop(self):
         '''
@@ -117,11 +132,6 @@ class Plot(tk.Frame):
         new_labels, new_data = Plot.str_to_data(self.message)
 
         if len(new_labels) > 0:
-
-            max_new = max(np.abs(new_data))
-            if(max_new > self.max):
-                self.max = max_new
-                self.on_resize()
 
             #remove any data and lines that aren't active
             to_delete = [] #indexes of labels to delete
@@ -144,7 +154,7 @@ class Plot(tk.Frame):
                         self.data = np.append(self.data, [np.zeros(self.historylen)], axis=0)
                     else:
                         self.data = np.array([np.zeros(self.historylen)])
-                    self.canvas.create_line(0,0,0,0, tag=f"{new_label}L")
+                    self.canvas.create_line(0,0,0,0, tag=f"{new_label}L", width=2)
                     self.canvas.create_text(0, 0, anchor="e", tag=f"{new_label}T", text=new_label)
 
                     scale_frame = tk.Frame(self.side_frame)
@@ -177,11 +187,17 @@ class Plot(tk.Frame):
         m = len(self.labels)
         n = self.historylen
 
-        if m == 0:
+        if m == 0 or self.paused:
             return
 
-        # data_scaled = self.data @ self.scale
-        # data_scaled = self.h_2 * (1 - self.data) #scale data y-values for the display
+        max_new = np.max(self.data)
+        if(abs(max_new - self.max) > 1e-6):
+            self.max = max_new
+            self.on_resize()
+        min_new = np.min(self.data)
+        if(abs(min_new - self.min) > 1e-6):
+            self.min = min_new
+            self.on_resize()
         data_scaled = self.disp(self.data)
 
         #canvas.coords() takes in a flattened input: x1,y1,x2,y2,... 

@@ -3,7 +3,8 @@ from tkinter.messagebox import showinfo, askokcancel
 import serial.tools.list_ports
 import threading
 import time
-from serpent_plt import PlotWindow
+# from serpent_plt import PlotWindow
+from tkinterplot import Plot
 from periodics import PeriodicSleeper
 
 
@@ -126,7 +127,7 @@ def start_serial():
 def send_to_plot():
     global messagebuffer
     if(plotwindow):
-        plotwindow.plot_message(messagebuffer)
+        plotwindow.set(messagebuffer)
 
 
 def toggle_serial():
@@ -143,7 +144,8 @@ def toggle_serial():
     else: #turning off
         # if(serial_thread):
         #     serial_thread.join()
-        # plot_handler.stop()
+        plot_handler.stop()
+        plotwindow.pause()
         runbutton.config(text="Run")
 
 runbutton = tk.Button(baudframe, text="Run", command=toggle_serial)
@@ -169,7 +171,8 @@ def open_plot_w_root():
     try:
         plotwindow.lift()
     except:
-        plotwindow = PlotWindow(root)
+        window=tk.Toplevel(root)
+        plotwindow = Plot(window)
 
 button = tk.Button(optionframe, text="Open Plot", command=open_plot_w_root)
 button.pack(side=tk.RIGHT)
