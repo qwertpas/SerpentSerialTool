@@ -33,21 +33,20 @@ class Plot(tk.Frame):
         self.hues = []
         self.w = parent.winfo_width()
         self.h_2 = parent.winfo_height() / 2.
+        self.max = 1e-6
 
         self.message = "" #buffer that some external loop updates, then the plotter displays it periodically
 
         self.textoffset = np.array([-10, 0]) #offsets for the labels
-
         self.temp_tags = [] #strings of y axis mark tags that get redrawn on resize
+        self.scale_frames = []
 
         self.plotloop()
         
     def disp(self, val):
+        val=val/self.max
         pad = 20
         return (self.h_2 - pad) * (1 - val) + pad
-    def invdisp(self, disp):
-        pad = 20
-        return 1 - (disp-pad)/(self.h_2-pad)
 
     def on_resize(self, event=None):
         self.w = self.winfo_width()
@@ -56,8 +55,8 @@ class Plot(tk.Frame):
         for temp_tag in self.temp_tags:
             self.canvas.delete(temp_tag)  # Delete line item from the canvas
 
-        for y in np.arange(-1, 1.01, 0.2):
-            y = round(y, 2)
+        for y in np.linspace(-self.max, self.max, 10):
+            y = Plot.round_sigfig(y, 2)
             marktag = f"_M{y}"
             gridtag = f"_G{y}"
             self.temp_tags.append(marktag)
@@ -67,7 +66,7 @@ class Plot(tk.Frame):
                 self.canvas.create_line(0, self.disp(y), self.w, self.disp(y), tag=gridtag, fill="#AAAAAA")
             else:
                 self.canvas.create_line(0, self.disp(y), self.w, self.disp(y), tag=gridtag, fill="#454545")
-            self.canvas.create_text(10, h, anchor='w', text=f"{y}", tag=marktag)
+            self.canvas.create_text(10, h, anchor='w', text=f"{y:0.4g}", tag=marktag)
 
         # self.data = np.zeros_like(self.data)
         self.draw()
@@ -101,6 +100,11 @@ class Plot(tk.Frame):
         )
         return hex_code
     
+    def round_sigfig(x, p):
+        x_positive = np.where(np.isfinite(x) & (x != 0), np.abs(x), 10**(p-1))
+        mags = 10 ** (p - 1 - np.floor(np.log10(x_positive)))
+        return np.round(x * mags) / mags
+    
     def set(self, message):
         self.message = message
 
@@ -113,6 +117,12 @@ class Plot(tk.Frame):
         new_labels, new_data = Plot.str_to_data(self.message)
 
         if len(new_labels) > 0:
+
+            max_new = max(np.abs(new_data))
+            if(max_new > self.max):
+                self.max = max_new
+                self.on_resize()
+
             #remove any data and lines that aren't active
             to_delete = [] #indexes of labels to delete
             for i in range(len(self.labels)): 
@@ -137,9 +147,13 @@ class Plot(tk.Frame):
                     self.canvas.create_line(0,0,0,0, tag=f"{new_label}L")
                     self.canvas.create_text(0, 0, anchor="e", tag=f"{new_label}T", text=new_label)
 
-                    
-                    new_scaleinput = tk.Entry(self.side_frame)
-                    new_scaleinput.pack()
+                    scale_frame = tk.Frame(self.side_frame)
+                    scale_frame.pack()
+                    scalelabel = tk.Label(scale_frame, text=new_label)
+                    scalelabel.pack()
+                    scaleinput = tk.Entry(scale_frame, width=5)
+                    scaleinput.pack(side=tk.RIGHT, before=scalelabel)
+                    self.scale_frames.append(scale_frame)
 
                     added_new = True
                     print(f"added new series: {new_label}")
@@ -199,7 +213,7 @@ def main():
         for i in range((int)(count / 200)+1):
             if(i > 4):
                 break
-            message = message + f"{i}: {np.sin(count/50+i)} \n"
+            message = message + f"y{i}: {np.tan(count/50+i)} \n"
         plot.set(message)
     datastream = PeriodicSleeper(senddata, 0.01)
 
