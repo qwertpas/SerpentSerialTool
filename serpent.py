@@ -93,6 +93,8 @@ def start_serial():
 
     count = 0
     while serial_on:
+        messagecount = 0
+        starttime = time.time()
         if ser.in_waiting > 0:
             try:
                 uarttext = ser.read_all().decode()
@@ -114,12 +116,15 @@ def start_serial():
                 add_text(message)
                 messagebuffer = message
 
+                messagecount += 1
+
                 message = "" #clear message
                 uarttext = uarttext[ending+len(delimiter):] #front of buffer used up
 
             message = uarttext #whatver is left over
 
         time.sleep(0.033)
+        print("messages per second: ", messagecount / (time.time() - starttime))
         count+=1
         
     ser.close()
