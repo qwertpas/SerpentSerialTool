@@ -147,14 +147,20 @@ class Plot(tk.Frame):
 
     def validate_numeric(self, is_insert, new_value):
         if is_insert == 0:
-            return True
+            return True     #allow deletion
         return new_value.isdigit() or new_value == "."
     
     def set_history(self, entry):
         value = int(entry.get())
         if value >= 2:
+            if value < self.historylen:
+                self.data.resize((len(self.data), value))
+            else:
+                #pad the front with zeros
+                self.data = np.concatenate([np.zeros((len(self.data), value - self.historylen)), self.data], axis=1)
             self.historylen = value
-            self.data = np.resize(self.data, (len(self.data), self.historylen))
+
+
 
 
     def rescale(self, entry, label):
@@ -290,6 +296,8 @@ def main():
     root = tk.Tk()
     plot = Plot(root)
 
+    import time
+
     def senddata():
         global count
         count += 1
@@ -300,10 +308,10 @@ def main():
         for i in range((int)(count / period)+1):
             if(i > 4):
                 break
-            message = message + f"y{i}: {np.sin(count/50+i)} \n"
+            message = message + f"y{i}: {np.sin(time.time()+i)} \n"
         
-        if count > 5*period:
-            count = 0
+        # if count > 5*period:
+        #     count = 0
 
         plot.set(message)
     
