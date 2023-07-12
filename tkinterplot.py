@@ -7,25 +7,6 @@ from periodics import PeriodicSleeper
 
 class Plot(tk.Frame):
     def __init__(self, parent):
-        tk.Frame.__init__(self, parent)
-
-        parent.wm_title("Serpent Plotter")
-        parent.wm_geometry("800x400")
-        self.canvas = tk.Canvas(self, background="gray12")
-        self.canvas.bind("<Configure>", self.on_resize)
-
-        self.yaxis_frame = tk.Frame(parent)
-        self.yaxis_frame.pack()
-
-        self.side_frame = tk.LabelFrame(parent,text='Scale',padx=5, pady=5)
-        self.side_frame.pack(side=tk.RIGHT, fill='both')
-
-        # self.legend_label = tk.Label(self.side_frame, text="set the sacle")
-        # self.legend_label.pack()
-
-        self.canvas.pack(expand=True, fill=tk.BOTH)
-        self.pack(expand=True, fill=tk.BOTH)
-
         self.historylen = 100
         self.labels = []
         self.data = np.array([])
@@ -46,7 +27,37 @@ class Plot(tk.Frame):
 
         self.paused = False
 
+        self.setup_graphics(parent)
         self.plotloop()
+
+    def setup_graphics(self, parent):
+        tk.Frame.__init__(self, parent)
+
+        parent.wm_title("Serpent Plotter")
+        parent.wm_geometry("800x400")
+        self.canvas = tk.Canvas(self, background="gray12")
+        self.canvas.bind("<Configure>", self.on_resize)
+
+        self.yaxis_frame = tk.Frame(parent)
+        self.yaxis_frame.pack()
+
+        self.side_frame = tk.LabelFrame(parent,text='Scale',padx=5, pady=5)
+        self.side_frame.pack(side=tk.RIGHT, fill='both')
+
+        history_frame = tk.Frame(self.side_frame)
+        history_frame.pack(side=tk.BOTTOM)
+
+        historylabel = tk.Label(history_frame, text="# pts:")
+        historylabel.pack()
+
+        historyentry = tk.Entry(history_frame, width=5, validate="key", validatecommand=(self.register(self.validate_numeric), '%P', '%d'))
+        historyentry.insert(0, f"{self.historylen}")
+        historyentry.pack(side=tk.BOTTOM, before=historylabel)
+        historyentry.bind("<Return>", lambda event: self.set_history(historyentry))
+
+        self.canvas.pack(expand=True, fill=tk.BOTH)
+        self.pack(expand=True, fill=tk.BOTH)
+
 
     def pause(self):
         self.paused = True
@@ -73,6 +84,8 @@ class Plot(tk.Frame):
         except Exception as e:
             print(e)
             print(xmin, xmax, bot, xmax+step, step)
+
+
 
     def on_resize(self, event=None):
         self.w = self.winfo_width()
@@ -136,6 +149,13 @@ class Plot(tk.Frame):
         if is_insert == 0:
             return True
         return new_value.isdigit() or new_value == "."
+    
+    def set_history(self, entry):
+        value = int(entry.get())
+        if value >= 2:
+            self.historylen = value
+            self.data = np.resize(self.data, (len(self.data), self.historylen))
+
 
     def rescale(self, entry, label):
         text = entry.get()
@@ -144,12 +164,12 @@ class Plot(tk.Frame):
             i = self.labels.index(label)
             self.scales[i] = value
             self.saved_scales[label] = value
-            print(f"saved scales: {self.saved_scales}")
             print(f"rescale {label} with {value}")
-            print(self.scales)
+            print(f"saved scales: {self.saved_scales}")
         except Exception as e:
             print(e)
             # print("Scale input is not a float")
+
 
     def plotloop(self):
         '''
