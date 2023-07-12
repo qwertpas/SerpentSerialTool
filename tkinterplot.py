@@ -7,6 +7,8 @@ from periodics import PeriodicSleeper
 
 class Plot(tk.Frame):
     def __init__(self, parent):
+        self.parent = parent
+
         self.historylen = 100
         self.labels = []
         self.data = np.array([])
@@ -50,7 +52,7 @@ class Plot(tk.Frame):
         historylabel = tk.Label(history_frame, text="# pts:")
         historylabel.pack()
 
-        historyentry = tk.Entry(history_frame, width=5, validate="key", validatecommand=(self.register(self.validate_numeric), '%P', '%d'))
+        historyentry = tk.Entry(history_frame, width=5)
         historyentry.insert(0, f"{self.historylen}")
         historyentry.pack(side=tk.BOTTOM, before=historylabel)
         historyentry.bind("<Return>", lambda event: self.set_history(historyentry))
@@ -144,24 +146,19 @@ class Plot(tk.Frame):
     def set(self, message):
         self.message = message
         self.paused = False
-
-    def validate_numeric(self, is_insert, new_value):
-        if is_insert == 0:
-            return True     #allow deletion
-        return new_value.isdigit() or new_value == "."
     
     def set_history(self, entry):
-        value = int(entry.get())
-        if value >= 2:
-            if value < self.historylen:
-                self.data.resize((len(self.data), value))
-            else:
-                #pad the front with zeros
-                self.data = np.concatenate([np.zeros((len(self.data), value - self.historylen)), self.data], axis=1)
-            self.historylen = value
-
-
-
+        try:
+            value = int(entry.get())
+            if value >= 2:
+                if value < self.historylen:
+                    self.data.resize((len(self.data), value))
+                else:
+                    #pad the front with zeros
+                    self.data = np.concatenate([np.zeros((len(self.data), value - self.historylen)), self.data], axis=1)
+                self.historylen = value
+        except Exception as e:
+            print(e)
 
     def rescale(self, entry, label):
         text = entry.get()
@@ -174,7 +171,6 @@ class Plot(tk.Frame):
             print(f"saved scales: {self.saved_scales}")
         except Exception as e:
             print(e)
-            # print("Scale input is not a float")
 
 
     def plotloop(self):
@@ -229,7 +225,7 @@ class Plot(tk.Frame):
                     scalelabel = tk.Label(scale_frame, text=new_label)
                     scalelabel.pack()
         
-                    scaleentry = tk.Entry(scale_frame, width=5, validate="key", validatecommand=(self.register(self.validate_numeric), '%P', '%d'))
+                    scaleentry = tk.Entry(scale_frame, width=5)
                     scaleentry.insert(0, f"{self.scales[-1]:g}")
                     scaleentry.pack(side=tk.RIGHT, before=scalelabel)
                     scaleentry.bind("<Return>", lambda event: self.rescale(scaleentry, new_label))
