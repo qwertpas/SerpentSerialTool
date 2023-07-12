@@ -29,16 +29,18 @@ class Plot(tk.Frame):
         self.historylen = 100
         self.labels = []
         self.data = np.array([])
-        # self.scale = np.array([])
+        self.scales = np.array([])
+        self.saved_scales = {}      #dict for history of labels and scales, so scale is preserved if data is spotty
         self.hues = []
         self.w = parent.winfo_width()
         self.h = parent.winfo_height()
-        self.max = 1e-6
-        self.min = -1e-6
+        self.epsilon = 1e-9 #minimum floating value to display
+        self.max = self.epsilon
+        self.min = -self.epsilon
 
         self.message = "" #buffer that some external loop updates, then the plotter displays it periodically
 
-        self.textoffset = np.array([-10, 0]) #offsets for the labels
+        self.textoffset = np.array([-10, 0]) #xy offset for the labels
         self.temp_tags = [] #strings of y axis mark tags that get redrawn on resize
         self.scale_frames = []
 
@@ -55,8 +57,9 @@ class Plot(tk.Frame):
         return (self.h - 2*pad) * (1-val) + pad
     
     def find_nice_range(xmin, xmax):
-        n = ceil(log10((xmax-xmin)/5)-1)
-        s = (xmax-xmin)/10**(n+1)
+        diff = xmax-xmin
+        n = ceil(log10(diff / 5) - 1)
+        s = diff / 10**(n+1)
         if s <= 1:
             s = 1
         elif s <= 2:
@@ -65,7 +68,11 @@ class Plot(tk.Frame):
             s = 5
         step = s*10**n
         bot = floor(xmin/step)*step
-        return np.arange(bot, xmax+step, step)
+        try:
+            return np.arange(bot, xmax+step, step)
+        except Exception as e:
+            print(e)
+            print(xmin, xmax, bot, xmax+step, step)
 
     def on_resize(self, event=None):
         self.w = self.winfo_width()
@@ -75,18 +82,20 @@ class Plot(tk.Frame):
             self.canvas.delete(temp_tag)  # Delete line item from the canvas
 
         for y in Plot.find_nice_range(self.min, self.max):
+            if abs(y) < self.epsilon:
+                y = 0
             marktag = f"_M{y}"
             gridtag = f"_G{y}"
             self.temp_tags.append(marktag)
             self.temp_tags.append(gridtag)
             h = int(self.disp(y))
-            if(y==0):
+
+            if y == 0:
                 self.canvas.create_line(0, self.disp(y), self.w, self.disp(y), tag=gridtag, fill="#AAAAAA")
             else:
                 self.canvas.create_line(0, self.disp(y), self.w, self.disp(y), tag=gridtag, fill="#454545")
             self.canvas.create_text(10, h, anchor='w', text=f"{y:0.4g}", tag=marktag)
         
-
         # self.data = np.zeros_like(self.data)
         self.draw()
 
@@ -123,6 +132,25 @@ class Plot(tk.Frame):
         self.message = message
         self.paused = False
 
+    def validate_numeric(self, is_insert, new_value):
+        if is_insert == 0:
+            return True
+        return new_value.isdigit() or new_value == "."
+
+    def rescale(self, entry, label):
+        text = entry.get()
+        try:
+            value = float(text)
+            i = self.labels.index(label)
+            self.scales[i] = value
+            self.saved_scales[label] = value
+            print(f"saved scales: {self.saved_scales}")
+            print(f"rescale {label} with {value}")
+            print(self.scales)
+        except Exception as e:
+            print(e)
+            # print("Scale input is not a float")
+
     def plotloop(self):
         '''
         - delete any inactive series by removing the label, data, and canvas line
@@ -137,13 +165,19 @@ class Plot(tk.Frame):
             to_delete = [] #indexes of labels to delete
             for i in range(len(self.labels)): 
                 if self.labels[i] not in new_labels:
-                    self.data = np.delete(self.data, i, axis=0)
-                    self.canvas.delete(self.labels[i])
-                    self.canvas.delete(f"{self.labels[i]}L")
+                    self.canvas.delete(f"{self.labels[i]}L") #delete the plotline
+                    self.canvas.delete(f"{self.labels[i]}T") #delete the drawn text
                     to_delete.append(i)
-            for i in to_delete:
-                print(f"removing {self.labels[i]}")
-                self.labels.pop(i)
+            if to_delete:
+                for i in sorted(to_delete, reverse=True):
+                    del_label = self.labels.pop(i)
+                    self.scale_frames[i].destroy()
+                    self.scale_frames.pop(i)
+                    print(f"removed series: {del_label}")
+
+                self.data = np.delete(self.data, to_delete, axis=0)    
+                self.scales = np.delete(self.scales, to_delete, axis=0)    
+
 
             #add lines that don't exist yet
             added_new = False
@@ -152,18 +186,27 @@ class Plot(tk.Frame):
                     self.labels.append(new_label)
                     if len(self.data) > 0:
                         self.data = np.append(self.data, [np.zeros(self.historylen)], axis=0)
+                        self.scales = np.append(self.scales, 1)
                     else:
                         self.data = np.array([np.zeros(self.historylen)])
+                        self.scales = np.array([1.])
+                    if new_label in self.saved_scales: #restore the last used scale for this label
+                        self.scales[-1] = self.saved_scales[new_label]
+
                     self.canvas.create_line(0,0,0,0, tag=f"{new_label}L", width=2)
                     self.canvas.create_text(0, 0, anchor="e", tag=f"{new_label}T", text=new_label)
 
                     scale_frame = tk.Frame(self.side_frame)
                     scale_frame.pack()
+                    self.scale_frames.append(scale_frame)
+
                     scalelabel = tk.Label(scale_frame, text=new_label)
                     scalelabel.pack()
-                    scaleinput = tk.Entry(scale_frame, width=5)
-                    scaleinput.pack(side=tk.RIGHT, before=scalelabel)
-                    self.scale_frames.append(scale_frame)
+        
+                    scaleentry = tk.Entry(scale_frame, width=5, validate="key", validatecommand=(self.register(self.validate_numeric), '%P', '%d'))
+                    scaleentry.insert(0, f"{self.scales[-1]:g}")
+                    scaleentry.pack(side=tk.RIGHT, before=scalelabel)
+                    scaleentry.bind("<Return>", lambda event: self.rescale(scaleentry, new_label))
 
                     added_new = True
                     print(f"added new series: {new_label}")
@@ -189,26 +232,32 @@ class Plot(tk.Frame):
 
         if m == 0 or self.paused:
             return
+        
+        data_scaled = self.data * self.scales.reshape((-1,1))
 
-        max_new = np.max(self.data)
-        if(abs(max_new - self.max) > 1e-6):
+        do_resize = False
+        max_new = np.max(data_scaled)
+        if abs(max_new - self.max) > 1e-6:
             self.max = max_new
-            self.on_resize()
-        min_new = np.min(self.data)
-        if(abs(min_new - self.min) > 1e-6):
+            do_resize = True
+        min_new = np.min(data_scaled)
+        if abs(min_new - self.min) > 1e-6:
             self.min = min_new
+            do_resize = True
+        if abs(self.max - self.min) < self.epsilon:     #if max-min=0, scale is infinite
+            self.max += self.epsilon
+            self.min -= self.epsilon
+        if do_resize:
             self.on_resize()
-        data_scaled = self.disp(self.data)
+
+        disp_data = self.disp(data_scaled)
 
         #canvas.coords() takes in a flattened input: x1,y1,x2,y2,... 
         #next 3 lines adds a column vectors to every other index of the data 2D array which are the x values.
         xvals_row = np.linspace(start=0, stop=self.w, num=n)
         xvals_arr = np.tile(xvals_row, (len(self.labels), 1))
-
-        # print("xvals_arr: \n", xvals_arr)
-        # print("data_scaled: \n", data_scaled)
         
-        points = np.dstack([xvals_arr, data_scaled]).reshape(m, 2*n)
+        points = np.dstack([xvals_arr, disp_data]).reshape(m, 2*n)
 
         for i in range(len(self.labels)):
             self.canvas.coords(f"{self.labels[i]}L", points[i].tolist())
@@ -225,13 +274,20 @@ def main():
         global count
         count += 1
 
+        period = 100
+
         message = ""
-        for i in range((int)(count / 200)+1):
+        for i in range((int)(count / period)+1):
             if(i > 4):
                 break
-            message = message + f"y{i}: {np.tan(count/50+i)} \n"
+            message = message + f"y{i}: {np.sin(count/50+i)} \n"
+        
+        if count > 5*period:
+            count = 0
+
         plot.set(message)
-    datastream = PeriodicSleeper(senddata, 0.01)
+    
+    PeriodicSleeper(senddata, 0.01)
 
     root.mainloop()
     return 0
