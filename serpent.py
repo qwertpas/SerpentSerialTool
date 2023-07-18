@@ -1,5 +1,5 @@
 import tkinter as tk
-from tkinter.messagebox import showinfo, askokcancel
+from tkinter.messagebox import showinfo
 import serial.tools.list_ports
 import threading
 import time
