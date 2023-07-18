@@ -63,4 +63,4 @@ This format is required for the plotter to parse the variables properly, but is 
 * pyserial
 
 ## Purpose
-This app was built to debug the Ø32 controller, a miniature brushless DC motor controller. https://pintobotics.substack.com/ 
+This app was built to debug the Ø32 controller, a miniature brushless DC motor controller. It is part of the Pintobotics project: https://pintobotics.substack.com/ 
