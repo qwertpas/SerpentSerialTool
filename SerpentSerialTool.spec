@@ -8,7 +8,7 @@ a = Analysis(
     ['serpent.py'],
     pathex=[],
     binaries=[],
-    datas=[('serpent.png', '.')],
+    datas=[('icons/serpent.png', '.')],
     hiddenimports=[],
     hookspath=[],
     hooksconfig={},
@@ -37,7 +37,7 @@ exe = EXE(
     target_arch=None,
     codesign_identity=None,
     entitlements_file=None,
-    icon=['serpent.icns'],
+    icon=['icons/serpent.icns'],
 )
 coll = COLLECT(
     exe,
@@ -52,6 +52,6 @@ coll = COLLECT(
 app = BUNDLE(
     coll,
     name='SerpentSerialTool.app',
-    icon='serpent.icns',
+    icon='icons/serpent.icns',
     bundle_identifier=None,
 )
