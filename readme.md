@@ -8,7 +8,7 @@ Like the Arduino serial monitor and serial plotter, but with a few more features
 * Easily change port
 * Detection for end of message to keep values aligned
 * Option to send keystrokes immediately without pressing enter
-* Text monitor, plot, and send data simultneously
+* Text monitor, plot, and send data simultaneously
 * Zoom in and out with Cmd + and Cmd -
 * Plot scaling
 * Looks nicer
@@ -62,5 +62,7 @@ This format is required for the plotter to parse the variables properly, but is 
 * numpy
 * pyserial
 
-## Purpose
-This app was built to debug the Ø32 controller, a miniature brushless DC motor controller. It is part of the Pintobotics project: https://pintobotics.substack.com/ 
+## Connections
+This app was built to debug the [Ø32 controller](https://github.com/qwertpas/O32controller), a miniature brushless DC motor controller. It is part of the Pintobotics project: https://pintobotics.substack.com/ 
+
+Hackaday project: https://hackaday.io/project/191983-serpent-serial-tool
