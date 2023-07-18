@@ -152,7 +152,8 @@ def toggle_serial():
         # if(serial_thread):
         #     serial_thread.join()
         plot_handler.stop()
-        plotwindow.pause()
+        if plotwindow:
+            plotwindow.pause()
         runbutton.config(text="Run")
 
 runbutton = tk.Button(baudframe, text="Run", command=toggle_serial)
