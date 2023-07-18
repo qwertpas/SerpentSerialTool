@@ -26,7 +26,6 @@ class Plot(tk.Frame):
         self.textoffset = np.array([-10, 0]) #xy offset for the labels
         self.temp_tags = [] #strings of y axis mark tags that get redrawn on resize
         self.scale_frames = []
-        self.scale_entries = []
 
         self.paused = False
 
@@ -162,18 +161,16 @@ class Plot(tk.Frame):
             print(e)
 
     def rescale(self, entry, label):
-        for scaleframe in self.scale_frames:
-            label, entry = scaleframe.winfo_children()
-            label = label['text']
-            text = entry.get()
-            try:
-                value = float(text)
-                i = self.labels.index(label)
-                self.scales[i] = value
-                self.saved_scales[label] = value
-                print(f"saved scales: {self.saved_scales}")
-            except Exception as e:
-                print(e)
+        text = entry.get()
+        try:
+            value = float(text)
+            i = self.labels.index(label)
+            self.scales[i] = value
+            self.saved_scales[label] = value
+            print(f"rescale {label} with {value}")
+            print(f"saved scales: {self.saved_scales}")
+        except Exception as e:
+            print(e)
 
 
     def plotloop(self):
@@ -231,8 +228,7 @@ class Plot(tk.Frame):
                     scaleentry = tk.Entry(scale_frame, width=5)
                     scaleentry.insert(0, f"{self.scales[-1]:g}")
                     scaleentry.pack(side=tk.RIGHT, before=scalelabel)
-                    scaleentry.bind("<Return>", lambda event: self.rescale(scaleentry, scalelabel['text']))
-                    # self.scale_entries.append(scaleentry)
+                    scaleentry.bind("<Return>", lambda event: self.rescale(scaleentry, new_label))
 
                     added_new = True
                     print(f"added new series: {new_label}")

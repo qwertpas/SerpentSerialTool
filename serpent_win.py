@@ -228,7 +228,7 @@ def send_data():
             if(ser.is_open):
                 ser.write(text.encode())
         entry.delete(0, tk.END)
-        # add_text(text)
+        add_text(text)
 
 # Create a text entry widget
 entry = tk.Entry(entryframe)
