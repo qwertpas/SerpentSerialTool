@@ -6,6 +6,9 @@ import time
 # from serpent_plt import PlotWindow
 from tkinterplot import Plot
 from periodics import PeriodicSleeper
+from tkinter import filedialog
+import datetime
+
 
 
 root = tk.Tk()
@@ -40,6 +43,7 @@ def refresh_ports():
 
 # Create a dropdown menu for serial ports
 ports = scan_serial_ports()
+print(ports)
 port_var = tk.StringVar()
 port_dropdown = tk.OptionMenu(portframe, port_var, *ports)
 port_dropdown.pack(side=tk.RIGHT)
@@ -156,6 +160,7 @@ def toggle_serial():
             plotwindow.pause()
         runbutton.config(text="Run")
 
+
 runbutton = tk.Button(baudframe, text="Run", command=toggle_serial)
 runbutton.pack(side=tk.RIGHT, before=baud_dropdown)
 
@@ -184,6 +189,27 @@ def open_plot_w_root():
 
 button = tk.Button(optionframe, text="Open Plot", command=open_plot_w_root)
 button.pack(side=tk.RIGHT)
+
+def clear_text_display():
+    text_display.configure(state=tk.NORMAL)
+    text_display.delete(1.0, tk.END)
+    text_display.configure(state=tk.DISABLED)
+clear_button = tk.Button(optionframe, text="Clear", command=clear_text_display)
+clear_button.pack(side=tk.RIGHT)
+
+
+def save_to_file():
+    text_content = text_display.get(1.0, tk.END)
+    default_filename = datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S.txt")
+    file_path = filedialog.asksaveasfilename(defaultextension=".txt", filetypes=[("Text files", "*.txt")], initialfile=default_filename)
+    if file_path:
+        with open(file_path, "w") as file:
+            file.write(text_content)
+save_button = tk.Button(optionframe, text="Save", command=save_to_file)
+save_button.pack(side=tk.RIGHT)
+
+
+
 
 
 consoleframe = tk.Frame(mainframe)
@@ -263,6 +289,7 @@ entry.bind("<KeyPress>", entry_keypress)
 text_display.bind("<KeyPress>", console_keypress)
 
 entry.pack(side=tk.RIGHT, fill=tk.X, expand=True)
+
 
 # img = tk.Image("photo", file="serpent.png")
 # root.tk.call('wm','iconphoto', root._w, img)
