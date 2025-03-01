@@ -62,7 +62,7 @@ baudlabel.pack(side=tk.LEFT)
 
 
 # Create a dropdown menu for serial ports
-baudrates = [9600, 115200]
+baudrates = [9600, 115200, 1000000]
 baudrate_var = tk.IntVar()
 baudrate_var.set(baudrates[0])
 baud_dropdown = tk.OptionMenu(baudframe, baudrate_var, *baudrates)
@@ -103,7 +103,7 @@ def start_serial():
         starttime = time.time()
         if ser.in_waiting > 0:
             try:
-                uarttext = ser.read_all().decode('utf-8', errors='ignore')
+                uarttext = ser.read_all().decode('utf-8', errors='replace')
             except Exception as e:
                 print(e)
                 continue
@@ -129,7 +129,8 @@ def start_serial():
 
             message = uarttext #whatver is left over
 
-        time.sleep(0.033)
+        # time.sleep(0.033)
+        # time.sleep(0.010)
         # print("messages per second: ", messagecount / (time.time() - starttime))
         count+=1
         
